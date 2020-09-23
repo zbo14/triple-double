@@ -1,0 +1,61 @@
+{
+  "name": "triple-double",
+  "version": "0.0.0",
+  "description": "Create end-to-end encrypted WebSocket channels with Extended Triple Diffie-Hellman and Double Ratchet",
+  "main": "lib/index.js",
+  "scripts": {
+    "cert": "sh scripts/gencert.sh",
+    "doc": "jsdoc README.md lib/**",
+    "lint": "eslint lib test",
+    "start": "node index.js",
+    "test": "NODE_ENV=test nyc mocha --recursive --exit"
+  },
+  "keywords": [
+    "axolotl",
+    "axolotl protocol",
+    "diffie-hellman",
+    "double-ratchet",
+    "encryption",
+    "end-to-end encryption",
+    "e2ee",
+    "https",
+    "https server",
+    "signal",
+    "signal protocol",
+    "extended triple diffie-hellman",
+    "x3dh",
+    "websockets"
+  ],
+  "author": "Zachary Balder",
+  "license": "MIT",
+  "dependencies": {
+    "axl": "https://github.com/wavesplatform/curve25519-js",
+    "tweetnacl": "1.0.3",
+    "uuid": "8.3.0",
+    "ws": "7.3.1"
+  },
+  "devDependencies": {
+    "eslint": "7.8.1",
+    "eslint-config-standard": "14.1.1",
+    "eslint-plugin-import": "2.22.0",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-promise": "4.2.1",
+    "eslint-plugin-standard": "4.0.1",
+    "jsdoc": "3.6.5",
+    "mocha": "8.1.3",
+    "nyc": "15.1.0",
+    "sinon": "9.0.3"
+  },
+  "nyc": {
+    "check-coverage": true,
+    "per-file": true,
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100,
+    "reporter": [
+      "html",
+      "text"
+    ]
+  }
+}
