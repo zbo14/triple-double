@@ -1,8 +1,12 @@
 {
   "name": "triple-double",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Create end-to-end encrypted WebSocket channels with Extended Triple Diffie-Hellman and Double Ratchet",
   "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zbo14/triple-double"
+  },
   "scripts": {
     "cert": "sh scripts/gencert.sh",
     "doc": "jsdoc README.md lib/**",
@@ -29,7 +33,7 @@
   "author": "Zachary Balder",
   "license": "MIT",
   "dependencies": {
-    "axl": "https://github.com/wavesplatform/curve25519-js",
+    "axl": "wavesplatform/curve25519-js",
     "tweetnacl": "1.0.3",
     "uuid": "8.3.0",
     "ws": "7.3.1"
