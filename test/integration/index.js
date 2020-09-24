@@ -21,6 +21,7 @@ const plaintext = 'just some plain ole text'
 
 describe('integration', () => {
   before(async () => {
+    this.clock = sinon.useFakeTimers()
     this.alice = new Client()
     this.bob = new Client()
     this.server = new Server({ cert, key })
@@ -28,7 +29,10 @@ describe('integration', () => {
     await this.server.start(port)
   })
 
-  after(() => this.server.stop())
+  after(() => {
+    this.clock.restore()
+    this.server.stop()
+  })
 
   describe('#publishBundle()', () => {
     it('mocks 500 error', async () => {
@@ -388,6 +392,16 @@ describe('integration', () => {
       this.bob.send({ plaintext: plaintext3, sid: this.sid1 })
 
       await Promise.all([promise1, promise2])
+    })
+  })
+
+  describe('cleanup', () => {
+    it('cleans up sessions and messages on server', () => {
+      this.clock.tick(60e3)
+
+      assert.strictEqual(this.server.bundles.size, 1)
+      assert.strictEqual(this.server.msgs.size, 0)
+      assert.strictEqual(this.server.sessions.size, 0)
     })
   })
 })
