@@ -1,6 +1,6 @@
 {
   "name": "triple-double",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Create end-to-end encrypted WebSocket channels with Extended Triple Diffie-Hellman and Double Ratchet",
   "main": "lib/index.js",
   "repository": {
