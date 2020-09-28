@@ -10,6 +10,7 @@
   "scripts": {
     "cert": "sh scripts/gencert.sh",
     "doc": "jsdoc README.md lib/**",
+    "example": "node example.js",
     "lint": "eslint lib test",
     "start": "node index.js",
     "test": "NODE_ENV=test nyc mocha --recursive --exit"

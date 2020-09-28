@@ -34,6 +34,8 @@ The following code snippets assume top-level `async/await` for readability purpo
 
 A secure, out-of-band channel is needed to communicate public keys and session IDs between peers.
 
+Find the complete code in `./example.js` and run it with `npm run example`.
+
 ##### Alice publishes bundle
 
 Alice only has to perform this step if:
@@ -139,6 +141,30 @@ bob.send('<session ID>', 'hello "alice"')
 ```
 
 Alice and Bob can establish secure channels to other peers, if they so choose.
+
+##### Disconnect
+
+Once a peer calls `disconnect()` with the session ID, the channel closes and *both* peers receive "disconnect" events.
+
+```js
+// Alice's code continued
+alice.on('disconnect', sid => {
+  if (sid === '<session ID>') {
+    // Disconnected from Bob
+  }
+})
+
+alice.disconnect('<session ID>')
+```
+
+```js
+// Bob's code continued
+bob.on('disconnect', sid => {
+  if (sid === '<session ID>') {
+    // Disconnected from Alice
+  }
+})
+```
 
 ## Docs
 

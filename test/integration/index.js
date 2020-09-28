@@ -395,6 +395,48 @@ describe('integration', () => {
     })
   })
 
+  describe('#disconnect()', () => {
+    it('disconnects session', async () => {
+      const promise = Promise.all([
+        once(this.alice, 'disconnect'),
+        once(this.bob, 'disconnect')
+      ])
+
+      this.alice.disconnect(this.sid1)
+
+      const results = await promise
+
+      assert.deepStrictEqual(results, [[this.sid1], [this.sid1]])
+
+      assert.strictEqual(this.alice.sessions.get(this.sid1), undefined)
+      assert.strictEqual(this.bob.sessions.get(this.sid1), undefined)
+
+      assert.strictEqual(this.alice.conns.get(this.sid1), undefined)
+      assert.strictEqual(this.bob.conns.get(this.sid1), undefined)
+    })
+
+    it('fails to disconnect nonexistent session', async () => {
+      try {
+        this.alice.disconnect(uuid.v4())
+        assert.fail('Should throw')
+      } catch ({ message }) {
+        assert.strictEqual(message, 'Session not found')
+      }
+    })
+
+    it('fails to disconnect if not connected', async () => {
+      const sid = uuid.v4()
+      this.alice.sessions.set(sid, {})
+
+      try {
+        this.alice.disconnect(sid)
+        assert.fail('Should throw')
+      } catch ({ message }) {
+        assert.strictEqual(message, 'Not connected')
+      }
+    })
+  })
+
   describe('cleanup', () => {
     it('cleans up sessions and messages on server', () => {
       this.clock.tick(60e3)
