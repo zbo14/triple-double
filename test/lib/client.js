@@ -5,10 +5,14 @@ const { once } = require('events')
 const sinon = require('sinon')
 const Client = require('../../lib/client')
 
+const ca = '<cert>'
+const host = 'localhost'
+const port = 8888
+
 describe('lib/client', () => {
   describe('#handleMessage()', () => {
     it('emits error when message isn\'t JSON', async () => {
-      const client = new Client()
+      const client = new Client({ ca, host, port })
       const promise = once(client, 'anything')
 
       client.handleMessage(null, null, '[')
@@ -22,7 +26,7 @@ describe('lib/client', () => {
     })
 
     it('emits error when decryption fails', async () => {
-      const client = new Client()
+      const client = new Client({ ca, host, port })
       const promise = once(client, 'anything')
       const session = { decrypt: sinon.stub().throws(new Error('whoops')) }
 

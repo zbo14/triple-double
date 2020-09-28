@@ -51,14 +51,13 @@ See [here](https://signal.org/docs/specifications/x3dh/#publishing-keys) for mor
 const fs = require('fs')
 const { Client } = require('triple-double')
 
-const alice = new Client()
 const ca = fs.readFileSync('/path/to/cert')
+const host = '1.2.3.4'
+const port = 8888
 
-const pubKey = await alice.publishBundle({
-  host: '1.2.3.4',
-  port: 8888,
-  ca
-})
+const alice = new Client({ ca, host, port })
+
+const pubKey = await alice.publishBundle()
 
 // Send public key to Bob out-of-band
 ```
@@ -72,17 +71,16 @@ See [here](https://signal.org/docs/specifications/x3dh/#sending-the-initial-mess
 const fs = require('fs')
 const { Client } = require('triple-double')
 
-const bob = new Client()
 const ca = fs.readFileSync('/path/to/cert')
+const host = '1.2.3.4'
+const port = 8888
 
-const sid = await bob.sendInitMessage({
-  host:     '1.2.3.4',
-  port:      8888,
-  peerKey:   Buffer.from(/* alice's public key */),
-  plaintext: 'initial plaintext',
-  info:      Buffer.from('some info'),
-  ca
-})
+const bob = new Client({ ca, host, port })
+
+const peerKey = Buffer.from(/* alice's public key */)
+const plaintext = 'intial plaintext'
+
+const sid = await bob.sendInitMessage(peerKey, plaintext)
 
 // Send session ID to alice out-of-band
 ```
@@ -93,13 +91,7 @@ See [here](https://signal.org/docs/specifications/x3dh/#receiving-the-initial-me
 
 ```js
 // Alice's code continued
-const plaintext = await alice.recvInitMessage({
-  host: '1.2.3.4',
-  port: 8888,
-  sid:  '<session ID from Bob>',
-  info: Buffer.from('some info'),
-  ca
-})
+const plaintext = await alice.recvInitMessage('<session ID from Bob>')
 ```
 
 ##### Connect
@@ -110,22 +102,12 @@ This operation won't complete until *both* peers are connected.
 
 ```js
 // Alice's code continued
-await alice.connect({
-  host: '1.2.3.4',
-  port: 8888,
-  sid:  '<session ID>',
-  ca
-})
+await alice.connect('<session ID>')
 ```
 
 ```js
 // Bob's code continued
-await bob.connect({
-  host: '1.2.3.4',
-  port: 8888,
-  sid:  '<session ID>',
-  ca
-})
+await bob.connect('<session ID>')
 ```
 
 ##### Send/receive messages
@@ -142,7 +124,7 @@ alice.on('message', ({ sid, plaintext }) => {
   }
 })
 
-alice.send({ plaintext: 'hello "bob"', sid: '<session ID>' })
+alice.send('<session ID>', 'hello "bob"')
 ```
 
 ```js
@@ -153,7 +135,7 @@ bob.on('message', ({ sid, plaintext }) => {
   }
 })
 
-bob.send({ plaintext: 'hello "alice"', sid: '<session ID>' })
+bob.send('<session ID>', 'hello "alice"')
 ```
 
 Alice and Bob can establish secure channels to other peers, if they so choose.

@@ -55,9 +55,9 @@ describe('lib/server', () => {
     })
 
     it('throws if preKeySig is invalid', () => {
-      const pubKey = Buffer.alloc(32, 1).toString('base64')
-      const pubSignPreKey = Buffer.alloc(32, 2).toString('base64')
-      const preKeySig = Buffer.alloc(64, 3).toString('base64')
+      const pubKey = Buffer.alloc(32, 1).toString('hex')
+      const pubSignPreKey = Buffer.alloc(32, 2).toString('hex')
+      const preKeySig = Buffer.alloc(64, 3).toString('hex')
 
       try {
         Server.validateBundle({ pubKey, pubSignPreKey, preKeySig, oneTimeKeys: [Buffer.alloc(32)] })

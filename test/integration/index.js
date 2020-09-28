@@ -22,8 +22,8 @@ const plaintext = 'just some plain ole text'
 describe('integration', () => {
   before(async () => {
     this.clock = sinon.useFakeTimers()
-    this.alice = new Client()
-    this.bob = new Client()
+    this.alice = new Client({ ca, host, port, info })
+    this.bob = new Client({ ca, host, port, info })
     this.server = new Server({ cert, key })
 
     await this.server.start(port)
@@ -54,7 +54,7 @@ describe('integration', () => {
     })
 
     it('publishes bundle', async () => {
-      const pubKey = await this.alice.publishBundle({ host, port, ca })
+      const pubKey = await this.alice.publishBundle()
       const [[, { oneTimeKeys }]] = [...this.server.bundles]
 
       assert(Buffer.isBuffer(pubKey))
@@ -65,14 +65,14 @@ describe('integration', () => {
     })
 
     it('fails to re-publish same bundle', async () => {
-      const pubKey = Buffer.from(this.alice.pubKey).toString('base64')
-      const pubSignPreKey = Buffer.from(this.alice.pubSignPreKey).toString('base64')
-      const preKeySig = Buffer.from(this.alice.preKeySig).toString('base64')
-      const oneTimeKeys = this.alice.oneTimeKeys.map(({ pubKey }) => pubKey.toString('base64'))
+      const pubKey = Buffer.from(this.alice.pubKey).toString('hex')
+      const pubSignPreKey = Buffer.from(this.alice.pubSignPreKey).toString('hex')
+      const preKeySig = Buffer.from(this.alice.preKeySig).toString('hex')
+      const oneTimeKeys = this.alice.oneTimeKeys.map(({ pubKey }) => pubKey.toString('hex'))
 
       const headers = { 'Content-Type': 'application/json' }
       const data = JSON.stringify({ pubKey, pubSignPreKey, preKeySig, oneTimeKeys })
-      const resp = await Client.request({ data, host, port, headers, method: 'PUT', path: '/bundle', ca })
+      const resp = await this.alice.request({ data, headers, method: 'PUT', path: '/bundle' })
 
       assert.strictEqual(resp.statusCode, 400)
       assert.strictEqual(resp.data, 'Cannot publish bundle with same signature')
@@ -89,7 +89,7 @@ describe('integration', () => {
       this.server.handlePostMessageRequest = sinon.stub().rejects(new Error('whoops'))
 
       try {
-        await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
+        await this.bob.sendInitMessage(peerKey, plaintext)
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Code 500: Internal Server Error')
@@ -104,7 +104,7 @@ describe('integration', () => {
       peerKey[0]++
 
       try {
-        await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
+        await this.bob.sendInitMessage(peerKey, plaintext)
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Code 404: Not Found')
@@ -114,25 +114,25 @@ describe('integration', () => {
     it('rejects when signature invalid', async () => {
       const peerKey = Buffer.from(this.alice.pubKey)
       const [bundle] = [...this.server.bundles.values()]
-      const oldPreKeySig = Buffer.from(bundle.preKeySig, 'base64')
+      const oldPreKeySig = Buffer.from(bundle.preKeySig, 'hex')
       const newPreKeySig = Buffer.from(oldPreKeySig)
       newPreKeySig[0]++
 
-      bundle.preKeySig = newPreKeySig.toString('base64')
+      bundle.preKeySig = newPreKeySig.toString('hex')
 
       try {
-        await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
+        await this.bob.sendInitMessage(peerKey, plaintext)
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Invalid signature')
       } finally {
-        bundle.preKeySig = oldPreKeySig.toString('base64')
+        bundle.preKeySig = oldPreKeySig.toString('hex')
       }
     })
 
     it('fetches bundle and sends initial message', async () => {
       const peerKey = this.alice.pubKey
-      this.sid1 = await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
+      this.sid1 = await this.bob.sendInitMessage(peerKey, plaintext)
 
       assert(uuid.validate(this.sid1))
 
@@ -152,7 +152,7 @@ describe('integration', () => {
   describe('#recvInitMessage()', () => {
     it('fails to receive initial message with unrecognized sid', async () => {
       try {
-        await this.alice.recvInitMessage({ host, port, info, sid: uuid.v4(), ca })
+        await this.alice.recvInitMessage(uuid.v4())
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Code 404: Not Found')
@@ -160,7 +160,7 @@ describe('integration', () => {
     })
 
     it('receives initial message', async () => {
-      const result = await this.alice.recvInitMessage({ host, port, info, sid: this.sid1, ca })
+      const result = await this.alice.recvInitMessage(this.sid1)
 
       assert.strictEqual(result.toString(), plaintext)
 
@@ -176,9 +176,9 @@ describe('integration', () => {
     it('receives initial message after re-publishing bundle', async () => {
       const peerKey = this.alice.pubKey
 
-      this.sid2 = await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
+      this.sid2 = await this.bob.sendInitMessage(peerKey, plaintext)
       await this.alice.publishBundle({ host, port, ca })
-      const result = await this.alice.recvInitMessage({ host, port, info, sid: this.sid2, ca })
+      const result = await this.alice.recvInitMessage(this.sid2)
 
       assert.strictEqual(result.toString(), plaintext)
 
@@ -194,12 +194,12 @@ describe('integration', () => {
     it('fails to find signed prekey after re-publishing multiple times', async () => {
       const peerKey = this.alice.pubKey
 
-      const sid = await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
-      await this.alice.publishBundle({ host, port, ca })
-      await this.alice.publishBundle({ host, port, ca })
+      const sid = await this.bob.sendInitMessage(peerKey, plaintext)
+      await this.alice.publishBundle()
+      await this.alice.publishBundle()
 
       try {
-        await this.alice.recvInitMessage({ host, port, info, sid, ca })
+        await this.alice.recvInitMessage(sid)
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Couldn\'t determine privSignPreKey')
@@ -216,15 +216,15 @@ describe('integration', () => {
 
     it('rejects if can\'t find oneTimeKey', async () => {
       const peerKey = this.alice.pubKey
-      const sid = await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
+      const sid = await this.bob.sendInitMessage(peerKey, plaintext)
 
       const msg = this.server.msgs.get(sid)
-      const oneTimeKey = Buffer.from(msg.oneTimeKey, 'base64')
+      const oneTimeKey = Buffer.from(msg.oneTimeKey, 'hex')
       oneTimeKey[1]--
-      msg.oneTimeKey = oneTimeKey.toString('base64')
+      msg.oneTimeKey = oneTimeKey.toString('hex')
 
       try {
-        await this.alice.recvInitMessage({ host, port, info, sid, ca })
+        await this.alice.recvInitMessage(sid)
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Couldn\'t find oneTimeKey')
@@ -244,10 +244,10 @@ describe('integration', () => {
     it('runs out of oneTimeKeys', async () => {
       const peerKey = this.alice.pubKey
 
-      await this.alice.publishBundle({ host, port, ca })
+      await this.alice.publishBundle()
 
       for (let i = 0; i < 10; i++) {
-        await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
+        await this.bob.sendInitMessage(peerKey, plaintext)
       }
 
       assert.strictEqual(this.server.bundles.size, 1)
@@ -256,7 +256,7 @@ describe('integration', () => {
       assert.strictEqual(this.server.conns.size, 0)
 
       try {
-        await this.bob.sendInitMessage({ host, port, info, plaintext, peerKey, ca })
+        await this.bob.sendInitMessage(peerKey, plaintext)
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Code 503: No more oneTimeKeys')
@@ -272,8 +272,8 @@ describe('integration', () => {
   describe('#connect()', () => {
     it('connects alice and bob', async () => {
       await Promise.all([
-        this.alice.connect({ host, port, sid: this.sid1, ca }),
-        this.bob.connect({ host, port, sid: this.sid1, ca })
+        this.alice.connect(this.sid1),
+        this.bob.connect(this.sid1)
       ])
 
       assert.strictEqual(this.alice.conns.size, 1)
@@ -287,7 +287,7 @@ describe('integration', () => {
 
     it('fails to connect to same session twice', async () => {
       try {
-        await this.alice.connect({ host, port, sid: this.sid1, ca })
+        await this.alice.connect(this.sid1)
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Already connected')
@@ -295,7 +295,7 @@ describe('integration', () => {
     })
 
     it('fails to connect if peer disconnected', async () => {
-      this.alice.connect({ host, port, sid: this.sid2, ca })
+      this.alice.connect(this.sid2)
 
       await once(this.server, 'connection')
 
@@ -304,7 +304,7 @@ describe('integration', () => {
       conn.close()
 
       try {
-        await this.bob.connect({ host, port, sid: this.sid2, ca })
+        await this.bob.connect(this.sid2)
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Peer disconnected')
@@ -313,7 +313,7 @@ describe('integration', () => {
 
     it('fails to connect if session not found', async () => {
       try {
-        await this.alice.connect({ host, port, sid: uuid.v4(), ca })
+        await this.alice.connect(uuid.v4())
         assert.fail('Should reject')
       } catch ({ message }) {
         assert.strictEqual(message, 'Session not found')
@@ -324,7 +324,7 @@ describe('integration', () => {
   describe('#send()', () => {
     it('fails to send message to nonexistent session', async () => {
       try {
-        this.alice.send({ plaintext, sid: uuid.v4() })
+        this.alice.send(uuid.v4(), plaintext)
         assert.fail('Should throw')
       } catch ({ message }) {
         assert.strictEqual(message, 'Session not found')
@@ -334,7 +334,7 @@ describe('integration', () => {
     it('sends message from bob to alice', async () => {
       const promise = once(this.alice, 'message')
 
-      this.bob.send({ plaintext, sid: this.sid1 })
+      this.bob.send(this.sid1, plaintext)
 
       const [msg] = await promise
 
@@ -348,8 +348,8 @@ describe('integration', () => {
         once(this.bob, 'message').then(([msg]) => msg)
       ]
 
-      this.alice.send({ plaintext, sid: this.sid1 })
-      this.bob.send({ plaintext, sid: this.sid1 })
+      this.alice.send(this.sid1, plaintext)
+      this.bob.send(this.sid1, plaintext)
 
       const plaintexts = await Promise.all(promises)
 
@@ -384,12 +384,12 @@ describe('integration', () => {
         assert.deepStrictEqual(msg3, { plaintext: plaintext3, sid: this.sid1 })
       })()
 
-      this.alice.send({ plaintext: plaintext1, sid: this.sid1 })
-      this.bob.send({ plaintext: plaintext1, sid: this.sid1 })
-      this.alice.send({ plaintext: plaintext2, sid: this.sid1 })
-      this.alice.send({ plaintext: plaintext3, sid: this.sid1 })
-      this.bob.send({ plaintext: plaintext2, sid: this.sid1 })
-      this.bob.send({ plaintext: plaintext3, sid: this.sid1 })
+      this.alice.send(this.sid1, plaintext1)
+      this.bob.send(this.sid1, plaintext1)
+      this.alice.send(this.sid1, plaintext2)
+      this.alice.send(this.sid1, plaintext3)
+      this.bob.send(this.sid1, plaintext2)
+      this.bob.send(this.sid1, plaintext3)
 
       await Promise.all([promise1, promise2])
     })
